@@ -8,6 +8,3 @@ Frequência
 Baudarate para o ESP32: 115200
 
 IrManager no AndroidStudio
-
-
-
