@@ -1,0 +1,1 @@
+Pasta dedicada à identidade visual.
