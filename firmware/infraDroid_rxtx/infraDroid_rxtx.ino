@@ -1,12 +1,8 @@
-/*
- * Firmware ESP32 - RX/TX Infravermelho (Versão Compatível)
- * Arquivo: infraDroid_rxtx.ino
- */
 
 #include <Arduino.h>
 #include "iD_config.h" 
 
-// Configurações da Biblioteca IRremote
+
 #define DECODE_NEC          
 #define DECODE_SAMSUNG      
 #define DECODE_DISTANCE_WIDTH 
@@ -38,11 +34,8 @@ void loop() {
             Serial.print("CAPTURA NEC: 0x");
             Serial.println(IrReceiver.decodedIRData.decodedRawData, HEX);
 
-            Serial.println("RAW DATA (Copie os numeros abaixo para o SEND):");
             
-            // --- A SOLUÇÃO DO ERRO ESTÁ AQUI ---
-            // Em vez de acessar a memória manualmente (que dava erro rawDataPtr),
-            // pedimos para a própria biblioteca imprimir os dados.
+            
             IrReceiver.printIRResultRawFormatted(&Serial, true); 
             
             Serial.println();
