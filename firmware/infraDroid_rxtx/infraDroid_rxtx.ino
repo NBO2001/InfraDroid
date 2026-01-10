@@ -62,40 +62,68 @@ void loop() {
 }
 
 void processarEnvio() {
-    if (!inputString.startsWith("SEND ")) return;
-
-    String dados = inputString.substring(5);
-    uint16_t rawData[400]; // Buffer seguro
-    int count = 0;
-    int startIndex = 0;
-    int spaceIndex = dados.indexOf(' ');
     
-    // 1. Pega Frequência
-    int freqkHz = dados.substring(0, spaceIndex).toInt();
-    startIndex = spaceIndex + 1;
+    //METRALHAR o sinal...
+    // if (inputString.startsWith("NEC ")) {
+    //     String hexCodeStr = inputString.substring(4);
+    //     uint32_t hexCode = strtoul(hexCodeStr.c_str(), NULL, 16);
+        
+    //     Serial.printf("METRALHANDO NEC: 0x%08X\n", hexCode);
+        
+        
+    //     for (int i = 0; i < 5; i++) {
+    //         IrSender.sendNEC(hexCode, 32); 
+    //         delay(40); 
+    //     }
+        
+    //     Serial.println("Rajada enviada!");
+    //     IrReceiver.enableIRIn();
+    //     return;
+    // }
 
-    // 2. Pega os Pulsos
-    while (startIndex < dados.length() && count < 400) {
-        spaceIndex = dados.indexOf(' ', startIndex);
-        String valStr;
-        if (spaceIndex == -1) {
-            valStr = dados.substring(startIndex);
-            startIndex = dados.length();
-        } else {
-            valStr = dados.substring(startIndex, spaceIndex);
-            startIndex = spaceIndex + 1;
-        }
+
+
+    //envio do HEX (testanto ainda)
+    if (inputString.startsWith("NEC ")) {
+        String hexCodeStr = inputString.substring(4);
+        uint32_t hexCode = strtoul(hexCodeStr.c_str(), NULL, 16);
         
-        // Limpa sinais de + e - que a biblioteca imprime
-        valStr.replace("+", ""); 
-        valStr.replace("-", "");
+        Serial.printf("enviando nec: 0x%06X\n", hexCode);
         
-        rawData[count] = valStr.toInt();
-        count++;
+        IrSender.sendNEC(hexCode, 32); 
+        
+        IrReceiver.enableIRIn();
+        return;
     }
 
-    Serial.printf("Enviando %d pulsos pelo pino %d...\n", count, IR_TX_PIN);
-    
-    IrSender.sendRaw(rawData, count, freqkHz);
-    IrReceiver.enableIRIn(); 
+    //envio RAW    
+    if (inputString.startsWith("SEND ")) {
+        String dados = inputString.substring(5);
+        uint16_t rawData[400]; 
+        int count = 0;
+        int startIndex = 0;
+        int spaceIndex = dados.indexOf(' ');
+        
+        int freqkHz = dados.substring(0, spaceIndex).toInt();
+        startIndex = spaceIndex + 1;
+
+        while (startIndex < dados.length() && count < 400) {
+            spaceIndex = dados.indexOf(' ', startIndex);
+            String valStr;
+            if (spaceIndex == -1) {
+                valStr = dados.substring(startIndex);
+                startIndex = dados.length();
+            } else {
+                valStr = dados.substring(startIndex, spaceIndex);
+                startIndex = spaceIndex + 1;
+            }
+            valStr.replace("+", ""); 
+            valStr.replace("-", "");
+            rawData[count] = valStr.toInt();
+            count++;
+        }
+        Serial.printf("Enviando RAW (%d pulsos)...\n", count);
+        IrSender.sendRaw(rawData, count, freqkHz);
+        IrReceiver.enableIRIn(); 
+    }
 }
