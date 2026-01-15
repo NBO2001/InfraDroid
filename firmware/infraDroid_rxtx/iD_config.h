@@ -2,7 +2,7 @@
 #define ID_CONFIG_H
 
 //pinos
-#define IR_TX_PIN 15 //emissor
+#define IR_TX_PIN 14 //emissor
 #define IR_RX_PIN 4 //receptor
 
 

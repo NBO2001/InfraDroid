@@ -1,6 +1,12 @@
 ###### // precisa colocar o comando SEND e frequência 38 na frente dos números separado por espaço pra funcionar (Ex.: SEND 38 600 550...)
 
-* SEND 38
+// 38 é frequencia
+
+// 9000 4500 cabeçalho do NEC
+
+
+
+* SEND 38 9000 4500
 
 
 

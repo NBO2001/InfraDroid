@@ -1,13 +1,15 @@
 
 #include <Arduino.h>
-#include "iD_config.h" 
+#include "iD_config.h"
+
+//biblioteca do IR
+#include <IRremote.hpp>
 
 
 #define DECODE_NEC          
 #define DECODE_SAMSUNG      
 #define DECODE_DISTANCE_WIDTH 
 
-#include <IRremote.hpp>
 
 String inputString = "";
 bool stringComplete = false;
@@ -96,6 +98,7 @@ void processarEnvio() {
         return;
     }
 
+    //CONSIDERAR ESSE:
     //envio RAW    
     if (inputString.startsWith("SEND ")) {
         String dados = inputString.substring(5);
@@ -122,7 +125,7 @@ void processarEnvio() {
             rawData[count] = valStr.toInt();
             count++;
         }
-        Serial.printf("Enviando RAW (%d pulsos)...\n", count);
+        Serial.printf("Enviar RAW (%d pulsos)...\n", count);
         IrSender.sendRaw(rawData, count, freqkHz);
         IrReceiver.enableIRIn(); 
     }
