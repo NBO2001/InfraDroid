@@ -1,0 +1,25 @@
+Instruções para a apresentação de Terça 13/01:
+1 Apresentador
+10 minutos
+Slide com os seguintes tópicos
+- Lista de integrantes (com os cards)
+- Introdução do tema
+- Resumo das atividades planejadas da equipe (focar na divisão da equipe)
+- Resumo do cronograma
+- Detalhes de implementação decididos pela equipe (qualquer decisão em equipe que não estava na especificação)
+- Resumo do progresso atual (basta falar o que cada integrante está fazendo no momento)
+- Agradecimento
+
+* É válido qualquer site para fazer os slides (google slides, canvas, etc)
+* Vamos ter 3 apresentadores diferentes para cada ciclo e o apresentador do ciclo final vai ser escolhido pela coordenação.
+
+
+
+Link do drive com as apresentações:
+https://drive.google.com/drive/folders/1jzKRhxPaAv-xH3F2MeZvPtCm6rIMMtlk?usp=sharing
+
+cada equipe deve colocar em Apresentação planejamento/ um arquivo txt com o titulo Equipe X.txt contendo
+
+Link da apresentação:
+Link do repositório:
+Lista dos apresentadores por ciclo (1-3):
