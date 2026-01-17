@@ -29,7 +29,7 @@ void loop() {
     // --- RECEPÇÃO (RX) ---
     if (IrReceiver.decode()) {
         
-        // Filtra para pegar apenas NEC (definido no config) e ignora repeticoes
+        // filtra pra pegar apenas NEC (definido no config) e ignora repeticoes
         if (!(IrReceiver.decodedIRData.flags & IRDATA_FLAGS_IS_REPEAT) && 
             IrReceiver.decodedIRData.protocol == IR_PROTOCOL) {
             
@@ -85,7 +85,7 @@ void processarEnvio() {
 
 
 
-    //envio do HEX (testanto ainda)
+    //envio do HEX !!!!!! (testanto ainda)
     if (inputString.startsWith("NEC ")) {
         String hexCodeStr = inputString.substring(4);
         uint32_t hexCode = strtoul(hexCodeStr.c_str(), NULL, 16);

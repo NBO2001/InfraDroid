@@ -2,108 +2,162 @@
 #include <linux/kernel.h>
 #include <linux/usb.h>
 #include <linux/slab.h>
+#include <linux/device.h>
+#include <linux/fs.h>
 #include <linux/uaccess.h>
+#include <linux/errno.h>
 
-// --- CONFIGURAÇÃO ---
-// SUBSTITUA AQUI PELOS VALORES DO SEU 'lsusb'
-#define USB_VENDOR_ID  0x10c4  // Exemplo (Silicon Labs)
-#define USB_PRODUCT_ID 0xea60  // Exemplo (CP210x)
+// vendor / if
+#define USB_VENDOR_ID  0x10c4  // CP210x
+#define USB_PRODUCT_ID 0xea60  // CP210x
 
-#define MIN(a,b) (((a) <= (b)) ? (a) : (b))
-#define BULK_EP_OUT 0x01 // Geralmente o Endpoint 1 é saída (pode variar)
-#define MAX_PKG_SIZE 1024 // Tamanho do buffer
+#define BULK_EP_OUT 0x01
+#define BULK_EP_IN  0x81
+#define MAX_BUFFER_SIZE 1024
 
-// Estrutura para manter o estado do dispositivo
-struct usb_ir_device {
+// comandos cp210x
+#define CP210X_IFC_ENABLE   0x00
+#define CP210X_SET_BAUD     0x1E
+#define CP210X_REQ_TYPE     0x41 // Vendor | Interface | Out
+
+struct usb_ir {
     struct usb_device *udev;
-    struct usb_class_driver class;
-    unsigned char *bulk_in_buffer;
-    size_t bulk_in_size;
+    struct class *ir_class;
 };
 
-// --- FUNÇÃO DE ESCRITA NO SYSFS ---
-// É aqui que a mágica acontece. Quando alguém escreve no arquivo, essa função roda.
-static ssize_t ir_write(struct file *f, const char __user *buf, size_t count, loff_t *off) {
-    struct usb_interface *interface;
-    struct usb_ir_device *dev;
-    int retval = 0;
-    int wrote = 0;
-    char *cmd_buffer;
-
-    // Recupera o ponteiro do dispositivo
-    interface = f->private_data;
-    dev = usb_get_intfdata(interface);
-
-    // Aloca memória no Kernel para receber o comando
-    cmd_buffer = kmalloc(count + 1, GFP_KERNEL);
-    if (!cmd_buffer) return -ENOMEM;
-
-    // Copia os dados do Usuário (User Space) para o Kernel
-    if (copy_from_user(cmd_buffer, buf, count)) {
-        kfree(cmd_buffer);
-        return -EFAULT;
-    }
-    cmd_buffer[count] = '\0'; // Garante o fim da string
-
-    // LOG no Kernel (dmesg) para debug
-    printk(KERN_INFO "IR_DRIVER: Recebido comando: %s\n", cmd_buffer);
-
-    // --- ENVIO USB ---
-    // Envia o comando textual via Bulk Transfer para o ESP32
-    // Nota: O pipe usb_sndbulkpipe calcula o endereço correto
-    retval = usb_bulk_msg(dev->udev, usb_sndbulkpipe(dev->udev, BULK_EP_OUT),
-                          cmd_buffer, count, &wrote, 5000); // 5000ms timeout
-
-    if (retval) {
-        printk(KERN_ERR "IR_DRIVER: Erro no envio USB: %d\n", retval);
-    } else {
-        printk(KERN_INFO "IR_DRIVER: %d bytes enviados ao hardware\n", wrote);
-    }
-
-    kfree(cmd_buffer);
-    return count;
-}
-
-// Definição das operações do arquivo (open, release, write...)
-static struct file_operations fops = {
-    .owner = THIS_MODULE,
-    .write = ir_write, // Aponta para nossa função acima
-};
-
-// --- CONFIGURAÇÃO USB ---
-static int ir_probe(struct usb_interface *interface, const struct usb_device_id *id) {
-    struct usb_ir_device *dev;
+// --- FUNÇÃO AUXILIAR: CONFIGURAR BAUD RATE (115200) ---
+static int cp210x_configure(struct usb_device *udev) {
     int retval;
+    u32 *baud_ptr;
+    u32 baud_rate = 115200; // Velocidade desejada
 
-    dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-    if (!dev) return -ENOMEM;
-
-    dev->udev = interface_to_usbdev(interface);
-    dev->class.name = "usb/ir_device%d"; // Cria /dev/usb/ir_device0 (opcional)
-    dev->class.fops = &fops;
-
-    usb_set_intfdata(interface, dev);
-
-    // Registra o dispositivo USB
-    retval = usb_register_dev(interface, &dev->class);
+    // 1. Habilitar UART (Interface Enable)
+    // Envia valor 0x0001 (Enable) para o comando 0x00
+    retval = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
+                             CP210X_IFC_ENABLE, CP210X_REQ_TYPE,
+                             0x0001, 0, NULL, 0, 1000);
     if (retval < 0) {
-        printk(KERN_ERR "IR_DRIVER: Falha ao obter minor number\n");
+        printk(KERN_ERR "IR_DRIVER: Falha ao habilitar UART CP210x (%d)\n", retval);
         return retval;
     }
 
-    printk(KERN_INFO "IR_DRIVER: Dispositivo ESP32 IR conectado!\n");
+    // 2. Configurar Baud Rate
+    // O CP210x espera um ponteiro para um inteiro de 32 bits
+    baud_ptr = kmalloc(sizeof(u32), GFP_KERNEL);
+    if (!baud_ptr) return -ENOMEM;
+
+    *baud_ptr = baud_rate;
+
+    retval = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
+                             CP210X_SET_BAUD, CP210X_REQ_TYPE,
+                             0, 0, baud_ptr, sizeof(u32), 1000);
+
+    kfree(baud_ptr);
+
+    if (retval < 0) {
+        printk(KERN_ERR "IR_DRIVER: Falha ao setar Baud Rate (%d)\n", retval);
+        return retval;
+    }
+
+    printk(KERN_INFO "IR_DRIVER: CP210x configurado para 115200 baud!\n");
     return 0;
 }
 
-static void ir_disconnect(struct usb_interface *interface) {
-    struct usb_ir_device *dev;
-    dev = usb_get_intfdata(interface);
-    usb_deregister_dev(interface, &dev->class);
-    kfree(dev);
-    printk(KERN_INFO "IR_DRIVER: Dispositivo desconectado.\n");
+// --- TRANSMISSÃO ---
+static ssize_t transmit_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+    struct usb_interface *intf = to_usb_interface(dev->parent);
+    struct usb_device *udev = interface_to_usbdev(intf);
+    int retval;
+    int wrote;
+    char *cmd_buffer;
+
+    cmd_buffer = kmalloc(count + 1, GFP_KERNEL);
+    if (!cmd_buffer) return -ENOMEM;
+
+    memcpy(cmd_buffer, buf, count);
+    cmd_buffer[count] = '\0';
+
+    // printk(KERN_INFO "IR_DRIVER: Enviando %zu bytes...\n", count);
+
+    retval = usb_bulk_msg(udev, usb_sndbulkpipe(udev, BULK_EP_OUT),
+                          cmd_buffer, count, &wrote, 1000);
+
+    kfree(cmd_buffer);
+    if (retval) return retval;
+    return count;
 }
 
-// Tabela de dispositivos suportados
+// --- RECEPÇÃO ---
+static ssize_t receive_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+    struct usb_interface *intf = to_usb_interface(dev->parent);
+    struct usb_device *udev = interface_to_usbdev(intf);
+    int retval;
+    int read_count;
+    char *read_buffer;
+
+    read_buffer = kmalloc(MAX_BUFFER_SIZE, GFP_KERNEL);
+    if (!read_buffer) return -ENOMEM;
+
+    retval = usb_bulk_msg(udev, usb_rcvbulkpipe(udev, BULK_EP_IN),
+                          read_buffer, MAX_BUFFER_SIZE, &read_count, 2000);
+
+    if (retval) {
+        kfree(read_buffer);
+        if (retval == -ETIMEDOUT) return sprintf(buf, "TIMEOUT\n");
+        return retval;
+    }
+
+    memcpy(buf, read_buffer, read_count);
+    buf[read_count] = '\0';
+    kfree(read_buffer);
+    return read_count;
+}
+
+static DEVICE_ATTR_WO(transmit);
+static DEVICE_ATTR_RO(receive);
+
+static struct class *ir_class;
+
+// --- PROBE (ONDE A CONFIGURAÇÃO ACONTECE) ---
+static int ir_probe(struct usb_interface *interface, const struct usb_device_id *id)
+{
+    struct device *dev;
+    struct usb_device *udev = interface_to_usbdev(interface);
+    int retval;
+
+    // AQUI: Configura o chip para 115200 antes de qualquer coisa
+    retval = cp210x_configure(udev);
+    if (retval) return retval;
+
+    // Cria Sysfs
+    dev = device_create(ir_class, &interface->dev, MKDEV(0, 0), NULL, "ir_module");
+    if (IS_ERR(dev)) return PTR_ERR(dev);
+
+    retval = device_create_file(dev, &dev_attr_transmit);
+    if (retval) goto error;
+    retval = device_create_file(dev, &dev_attr_receive);
+    if (retval) goto error;
+
+    usb_set_intfdata(interface, dev);
+    printk(KERN_INFO "IR_DRIVER: Conectado e Configurado @ 115200!\n");
+    return 0;
+
+error:
+    device_destroy(ir_class, MKDEV(0, 0));
+    return retval;
+}
+
+static void ir_disconnect(struct usb_interface *interface)
+{
+    struct device *dev = usb_get_intfdata(interface);
+    device_remove_file(dev, &dev_attr_receive);
+    device_remove_file(dev, &dev_attr_transmit);
+    device_destroy(ir_class, MKDEV(0, 0));
+    printk(KERN_INFO "IR_DRIVER: Desconectado.\n");
+}
+
 static struct usb_device_id ir_table[] = {
     { USB_DEVICE(USB_VENDOR_ID, USB_PRODUCT_ID) },
     {}
@@ -111,24 +165,25 @@ static struct usb_device_id ir_table[] = {
 MODULE_DEVICE_TABLE(usb, ir_table);
 
 static struct usb_driver ir_driver = {
-    .name = "ir_driver_custom",
+    .name = "ir_driver_cp210x",
     .probe = ir_probe,
     .disconnect = ir_disconnect,
     .id_table = ir_table,
 };
 
-// --- INICIALIZAÇÃO DO MÓDULO ---
-static int __init ir_init(void) {
+static int __init ir_init(void)
+{
+    ir_class = class_create(THIS_MODULE, "infrared");
+    if (IS_ERR(ir_class)) return PTR_ERR(ir_class);
     return usb_register(&ir_driver);
 }
 
-static void __exit ir_exit(void) {
+static void __exit ir_exit(void)
+{
     usb_deregister(&ir_driver);
+    class_destroy(ir_class);
 }
 
 module_init(ir_init);
 module_exit(ir_exit);
-
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Sua Equipe");
-MODULE_DESCRIPTION("Driver USB Customizado para Emissor IR ESP32");

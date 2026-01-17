@@ -1,0 +1,44 @@
+O arduino IDE nao estava reconhecendo o dispositivo, estava dando o seguinte erro:
+
+Board at /dev/ttyUSB0 is not available
+
+Mas aparecia na lista do lsusb:
+
+Bus 001 Device 005: ID 10c4:ea60 Silicon Labs CP210x UART Bridge
+
+
+Tive que executar os seguinte comandos sugeridos por IA:
+
+sudo modprobe cp210x
+
+Esse comando habilita o driver cp20x manualmente, dei um ls -l /dev/ttyUSB0:
+
+crw-rw----+ 1 root dialout 188, 0 jan 17 10:20 /dev/ttyUSB0
+
+Conectou e o Arduino IDE conseguiu reconhecer o dispositivo!
+
+
+
+///////
+
+
+Ao fazer o make do makefile, carreguei manualmente o driver personalizado, mas tive que remover o driver padrao do cp210x pelo comando sudo rmmod cp210x e apos compilar via make, fiz sudi insmod ir_driver.ko... e funcionou
+
+Nos testes executou os comandos enviados RAW
+
+/////
+
+
+entra no superuser... sudo su
+
+Enviando os comandos:
+
+on:
+
+echo "SEND 38 9000 4500 600 500 600 550 600 500 600 550 600 500 600 550 600 550 550 550 600 1650 550 1650 600 1650 550 1650 600 550 600 1600 600 1650 600 1600 600 1650 600 1650 550 550 600 550 550 550 600 550 600 500 600 550 600 500 600 550 600 1600 600 1650 600 1600 600 1650 600 1650 550 1650 600" > /sys/class/infrared/ir_module/transmit
+
+off:
+
+echo "SEND 38 9000 4500 550 550 600 550 550 550 600 550 600 500 600 550 600 500 600 550 600 1600 600 1650 600 1650 550 1650 600 550 600 1600 600 1650 600 1600 600 550 600 1600 600 550 600 550 550 550 600 550 550 550 600 550 550 1650 600 550 600 1600 600 1650 600 1600 600 1650 600 1650 550 1650 600" > /sys/class/infrared/ir_module/transmit
+
+
