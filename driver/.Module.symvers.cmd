@@ -1,1 +1,0 @@
-cmd_/home/devtitans-2/InfraDroid/driver/Module.symvers := sed 's/\.ko$$/\.o/' /home/devtitans-2/InfraDroid/driver/modules.order | scripts/mod/modpost -m -a  -o /home/devtitans-2/InfraDroid/driver/Module.symvers -e -i Module.symvers   -T -
