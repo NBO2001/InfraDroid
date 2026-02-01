@@ -22,7 +22,7 @@ Conectou e o Arduino IDE conseguiu reconhecer o dispositivo!
 ///////
 
 
-Ao fazer o make do makefile, carreguei manualmente o driver personalizado, mas tive que remover o driver padrao do cp210x pelo comando sudo rmmod cp210x e apos compilar via make, fiz sudi insmod ir_driver.ko... e funcionou
+Ao fazer o make do makefile, carreguei manualmente o driver personalizado, mas tive que remover o driver padrao do cp210x pelo comando sudo rmmod cp210x e apos compilar via make, fiz sudo insmod ir_driver.ko... e funcionou
 
 Nos testes executou os comandos enviados RAW
 

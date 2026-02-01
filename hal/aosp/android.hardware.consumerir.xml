@@ -1,0 +1,4 @@
+# 1. Crie o arquivo com o conteúdo necessário
+echo '<permissions>
+    <feature name="android.hardware.consumerir" />
+</permissions>' > android.hardware.consumerir.xml

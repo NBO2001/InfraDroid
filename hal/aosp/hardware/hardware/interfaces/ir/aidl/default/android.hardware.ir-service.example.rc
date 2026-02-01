@@ -1,0 +1,11 @@
+service vendor.ir-default /vendor/bin/hw/android.hardware.ir-service.example
+    class hal
+    user system
+    group system
+
+# QUANDO O ANDROID LIGAR, DE PERMISSAO AO DRIVER:
+on boot
+    chown system system /sys/class/infrared/ir_module/transmit
+    chmod 0666 /sys/class/infrared/ir_module/transmit
+    chown system system /sys/class/infrared/ir_module/receive
+    chmod 0444 /sys/class/infrared/ir_module/receive

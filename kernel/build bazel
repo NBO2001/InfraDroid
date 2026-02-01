@@ -1,0 +1,31 @@
+filegroup(
+    name = "infradroid_sources",
+    srcs = [
+        "infradroid-driver/ir_driver.c"
+    ],
+)
+
+
+
+
+ddk_module(
+    name = "x86_64/infradroid",
+    srcs = [":infradroid_sources"],
+    out = "ir_driver.ko",
+    kernel_build = ":virtual_device_x86_64",
+    local_defines = ["DRIVER_VERSION=\"android14-6.1\""],
+    deps = [":common_headers_x86_64"],
+)
+
+
+
+kernel_module_group(
+    name = "virtual_device_x86_64_external_modules",
+    srcs = [
+        ":x86_64/goldfish_drivers/goldfish_address_space",
+        ":x86_64/goldfish_drivers/goldfish_pipe",
+        ":x86_64/goldfish_drivers/goldfish_sync",
+        ":x86_64/v4l2loopback",
+        ":x86_64/virtio_video",
+        ":x86_64/infradroid",
+    ],
